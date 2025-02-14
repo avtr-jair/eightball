@@ -19,7 +19,7 @@ jobs:
           debricked-sca-scan: false
         env:
           SSC_URL: ${{secrets.SSC_URL}}
-          # SSC_TOKEN: ${{secrets.SSC_TOKEN}}
+          SSC_TOKEN: ${{secrets.SSC_TOKEN}}
           SSC_USER: ${{secrets.SSC_USER}}
           SSC_PASSWORD: ${{secrets.SSC_PASSWORD}}
           SC_SAST_TOKEN: ${{secrets.SC_SAST_TOKEN}}
