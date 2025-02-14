@@ -20,8 +20,8 @@ jobs:
         env:
           SSC_URL: ${{secrets.SSC_URL}}
           SSC_TOKEN: ${{secrets.SSC_TOKEN}}
-          SSC_USER: ${{secrets.SSC_USER}}
-          SSC_PASSWORD: ${{secrets.SSC_PASSWORD}}
+          # SSC_USER: ${{secrets.SSC_USER}}
+          # SSC_PASSWORD: ${{secrets.SSC_PASSWORD}}
           SC_SAST_TOKEN: ${{secrets.SC_SAST_TOKEN}}
           # EXTRA_SC_SAST_LOGIN_OPTS: --socket-timeout=60s
           SSC_APPVERSION: ${{secrets.SSC_APPVER}}
