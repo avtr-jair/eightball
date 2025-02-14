@@ -1,0 +1,40 @@
+
+on:
+  push:
+    branches:
+      - main 
+      
+jobs:
+  Fortify-SAST-Scan: 
+    runs-on: self-hosted
+
+    steps:    
+      - name: Check out source code
+        uses: actions/checkout@v2
+
+      - name: Run ScanCentral SAST & Debricked scan
+        uses: fortify/github-action@v1
+        with:
+          sast-scan: true
+          debricked-sca-scan: false
+        env:
+          SSC_URL: ${{secrets.SSC_URL}}
+          # SSC_TOKEN: ${{secrets.SSC_TOKEN}}
+          SSC_USER: ${{secrets.SSC_USER}}
+          SSC_PASSWORD: ${{secrets.SSC_PASSWORD}}
+          SC_SAST_TOKEN: ${{secrets.SC_SAST_TOKEN}}
+          # EXTRA_SC_SAST_LOGIN_OPTS: --socket-timeout=60s
+          SSC_APPVERSION: ${{secrets.SSC_APPVER}}
+          # EXTRA_PACKAGE_OPTS: -bf custom-pom.xml
+          DO_WAIT: true
+          SC_SAST_SENSOR_VERSION: 24.2.0
+          DO_EXPORT: true
+
+      - name: Get artifact ID
+        run: |
+            ARTIFACT_ID=$(fcli ssc artifact list --av=11019 --output=json | jq -r '.[0].id')
+            echo "Artifact ID: $ARTIFACT_ID"
+        
+      - name: Approve the artifact
+        run: |
+            fcli ssc artifact approve $ARTIFACT_ID
