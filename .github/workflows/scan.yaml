@@ -35,7 +35,6 @@ jobs:
       - name: Run Fortify Translation
         if: ${{ github.event.inputs.do-translation == 'true' }}
         run: |
-          .\venv\Scripts\Activate.ps1
           sourceanalyzer -b $env:FORTIFY_BUILD -clean
           sourceanalyzer -b $env:FORTIFY_BUILD .\Eightball.java
         shell: powershell
@@ -126,9 +125,9 @@ jobs:
           name: fortify-fpr-sarif
           path: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
 
-      #- name: Upload SARIF File
-      #  uses: github/codeql-action/upload-sarif@v3
-      #  with:
-      #    sarif_file: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
-      #    category: Fortify
+      - name: Upload SARIF File
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+          category: Fortify
           
