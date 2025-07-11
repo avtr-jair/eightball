@@ -1,40 +1,134 @@
+name: Scan-powershell
 
 on:
-  push:
-    branches:
-      - main 
-      
-jobs:
-  Fortify-SAST-Scan: 
-    runs-on: self-hosted
+  workflow_dispatch:
+    inputs:
+      do-translation:
+        description: 'Run Fortify translation step'
+        type: boolean
+        default: false
 
-    steps:    
-      - name: Check out source code
+  #push:
+    #branches: [ main ]
+
+jobs:
+  Scan_Fortify:
+    runs-on: self-hosted
+    env:
+      FORTIFY_BUILD: ${{ secrets.FORTIFY_BUILD }}
+      FORTIFY_VERID: ${{ secrets.FORTIFY_VERID }}
+      FORTIFY_TOKEN: ${{ secrets.FORTIFY_TOKEN }}
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Mark workspace as safe for Git
+        shell: powershell
+        run: |
+          git config --global --add safe.directory "${{ github.workspace }}"
+
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Run ScanCentral SAST & Debricked scan
-        uses: fortify/github-action@v1
-        with:
-          sast-scan: true
-          debricked-sca-scan: false
-        env:
-          SSC_URL: ${{secrets.SSC_URL}}
-          SSC_TOKEN: ${{secrets.SSC_TOKEN}}
-          # SSC_USER: ${{secrets.SSC_USER}}
-          # SSC_PASSWORD: ${{secrets.SSC_PASSWORD}}
-          SC_SAST_TOKEN: ${{secrets.SC_SAST_TOKEN}}
-          # EXTRA_SC_SAST_LOGIN_OPTS: --socket-timeout=60s
-          SSC_APPVERSION: ${{secrets.SSC_APPVER}}
-          # EXTRA_PACKAGE_OPTS: -bf custom-pom.xml
-          DO_WAIT: true
-          SC_SAST_SENSOR_VERSION: 24.2.0
-          DO_EXPORT: true
+      - name: Run Fortify Translation
+        if: ${{ github.event.inputs.do-translation == 'true' }}
+        run: |
+          .\venv\Scripts\Activate.ps1
+          sourceanalyzer -b $env:FORTIFY_BUILD -clean
+          sourceanalyzer -b $env:FORTIFY_BUILD .\Eightball.java
+        shell: powershell
 
-      - name: Get artifact ID
+      - name: Run Fortify Scan
+        if: ${{ github.event.inputs.do-translation == 'true' }}
         run: |
-            ARTIFACT_ID=$(fcli ssc artifact list --av=11019 --output=json | jq -r '.[0].id')
-            echo "Artifact ID: $ARTIFACT_ID"
+          $output = scancentral -url $env:FORTIFY_SC_URL start -upload `
+            -versionid $env:FORTIFY_VERID `
+            -uptoken $env:FORTIFY_TOKEN `
+            -b $env:FORTIFY_BUILD `
+            -scan | Out-String
+
+          Write-Host "Fortify Scan Output: $output"
+
+          # Usar -match para extraer el token
+          if ($output -match "Submitted job and received token:\s*(\S+)") {
+              $token = $matches[1]
+          } else {
+              $token = "No token found"
+          }
+
+          Write-Host "Token extraido: $token"
+          echo "FORTIFY_JOB_TOKEN=$token" >> $env:GITHUB_ENV
+        env:
+          FORTIFY_SC_URL: ${{ secrets.FORTIFY_SC_URL }}
+        shell: powershell
+      
+      - name: LogIn Fortify SSC and SC-SAST
+        run: |
+          Write-Host "Logging in to Fortify SSC and SC-SAST"
+          fcli config truststore set -f="C:\Program Files\Java\jdk-23\lib\security\cacerts"
+          fcli ssc session login --url $env:FORTIFY_SSC_URL --user $env:FORTIFY_SSC_USER --password $env:FORTIFY_SSC_PASS
+          
+          fcli sc-sast session login --ssc-url $env:FORTIFY_SSC_URL -t $env:FORTIFY_TOKEN -c $env:FORTIFY_CLIENT_AUTH_TOKEN --connect-timeout 30s
+        env:
+          FORTIFY_SSC_URL: ${{ secrets.FORTIFY_SSC_URL }}
+          FORTIFY_SSC_USER: ${{ secrets.FORTIFY_SSC_USER }}
+          FORTIFY_SSC_PASS: ${{ secrets.FORTIFY_SSC_PASS }}
+          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
+        shell: powershell
+
+      - name: Approve Artifact
+        if: ${{ github.event.inputs.do-translation == 'true' }}
+        run: | 
+          Write-Host "Approving Artifact token: ${{env.FORTIFY_JOB_TOKEN}}"  
+
+          fcli sc-sast scan wait-for $env:FORTIFY_JOB_TOKEN
+
+          $artifactId = fcli ssc artifact list --av=$env:FORTIFY_VERID --output=json | jq -r '.[0].id'
+          
+          echo "ARTIFACT_ID=$artifactId" >> $env:GITHUB_ENV
+          
+          fcli ssc artifact approve $artifactId
+        env:
+          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
+        shell: powershell
+
+      - name: Download Fortify Report
+        run: |
+          Write-Host "Downloading Fortify Report for Artifact ID: ${{env.ARTIFACT_ID}}"
+          fcli ssc artifact download ${{env.ARTIFACT_ID}} -f ${{secrets.FORTIFY_BUILD}}.fpr
+          
+      - name: Upload FPR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fortify-fpr
+          path: ${{secrets.FORTIFY_BUILD}}.fpr
+
+      #- name: Install Parser
+        #run: |
+          #Write-Host "Installing SARIF Parser"
+          #dotnet tool install --global Sarif.Multitool --version 2.2.2
+
+      - name: Translate FPR to Serif 2.1.0
+        run: |
+          Write-Host "Translating FPR to Serif 2.1.0 format"
+          sarif convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
         
-      - name: Approve the artifact
-        run: |
-            fcli ssc artifact approve $ARTIFACT_ID
+      #- name: Correct Sarif File
+      #  run: |
+      #    jq -f .\test.jq ${{secrets.FORTIFY_BUILD}}.fpr.sarif > ${{secrets.FORTIFY_BUILD}}-corrected.fpr.sarif
+      #  shell: pwsh
+        
+      - name: Upload Sarif Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fortify-fpr-sarif
+          path: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+
+      #- name: Upload SARIF File
+      #  uses: github/codeql-action/upload-sarif@v3
+      #  with:
+      #    sarif_file: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+      #    category: Fortify
+          
