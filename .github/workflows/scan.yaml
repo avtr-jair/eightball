@@ -112,6 +112,7 @@ jobs:
       - name: Translate FPR to Serif 2.1.0
         run: |
           Write-Host "Translating FPR to Serif 2.1.0 format"
+          dotnet tool install --global Sarif.Multitool --version 2.2.2
           sarif convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
         
       #- name: Correct Sarif File
