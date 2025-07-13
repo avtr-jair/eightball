@@ -36,7 +36,7 @@ jobs:
         if: ${{ github.event.inputs.do-translation == 'true' }}
         run: |
           sourceanalyzer -b $env:FORTIFY_BUILD -clean
-          sourceanalyzer -b $env:FORTIFY_BUILD .\Eightball.java
+          sourceanalyzer -b $env:FORTIFY_BUILD .\Eightball.java -source 11
         shell: powershell
 
       - name: Run Fortify Scan
@@ -113,7 +113,7 @@ jobs:
         run: |
           Write-Host "Translating FPR to Serif 2.1.0 format"
           dotnet tool install --global Sarif.Multitool --version 2.2.2
-          $env:USERPROFILE\.dotnet\tools\sarif.exe convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
+          & "$env:USERPROFILE\.dotnet\tools\sarif.exe" convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
         
       #- name: Correct Sarif File
       #  run: |
