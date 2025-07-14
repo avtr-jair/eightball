@@ -7,8 +7,20 @@ jobs:
   Scan_Fortify:
     runs-on: self-hosted
     steps:
+    - name: Verificar bash
+      run: |
+        where bash
+        bash --version
+      shell: bash
+
     - name: Check out source code
       uses: actions/checkout@v4
+
+    - name: Diagnóstico bash
+      run: |
+        where bash
+        bash --version
+      shell: bash
 
     - name: Run Fortify SAST & SCA Scan
       uses: fortify/github-action@v2
