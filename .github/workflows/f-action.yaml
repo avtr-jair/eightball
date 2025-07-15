@@ -30,7 +30,7 @@ jobs:
         DO_EXPORT: github-sast-report
         EXPORT_ACTION: https://scm.my.org/shared-repos/fcli-actions/github-sast-report.yaml
         EXPORT_EXTRA_OPTS: --on-unsigned=ignore
-
+        FCLI_LOG_LEVEL: DEBUG
         FCLI_TRUSTSTORE: C:\\Program Files\\Java\\jdk-23\\lib\\security\\cacerts
         FCLI_TRUSTSTORE_TYPE: JKS
         FCLI_TRUSTSTORE_PWD: changeit  # asegúrate que este sea el correcto
