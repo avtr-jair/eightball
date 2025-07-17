@@ -17,7 +17,7 @@ jobs:
       group: Fortify
     env:
       FORTIFY_SSC_URL: ${{ vars.FORTIFY_SSC_URL }}
-      FORTIFY_SC_URL: ${{ secrets.FORTIFY_SC_URL }}
+      FORTIFY_SC_URL: ${{ vars.FORTIFY_SC_URL }}
       FORTIFY_BUILD: ${{ vars.FORTIFY_BUILD }}
       FORTIFY_VERID: ${{ vars.FORTIFY_VERID }}
     
