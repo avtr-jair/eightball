@@ -16,10 +16,14 @@ jobs:
     runs-on:
       group: Fortify
     env:
+      FORTIFY_SSC_URL: ${{ vars.FORTIFY_SSC_URL }}
+      FORTIFY_SC_URL: ${{ secrets.FORTIFY_SC_URL }}
       FORTIFY_BUILD: ${{ vars.FORTIFY_BUILD }}
       FORTIFY_VERID: ${{ vars.FORTIFY_VERID }}
-      FORTIFY_TOKEN: ${{ secrets.FORTIFY_TOKEN }}
+      FORTIFY_SC_CRTL_TOKEN: ${{ secrets.FORTIFY_SC_CRTL_TOKEN }}
+      FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
 
+      
     permissions:
       contents: read
       security-events: write
@@ -45,7 +49,7 @@ jobs:
         run: |
           $output = scancentral -url $env:FORTIFY_SC_URL start -upload `
             -versionid $env:FORTIFY_VERID `
-            -uptoken $env:FORTIFY_TOKEN `
+            -uptoken $env:FORTIFY_SC_CRTL_TOKEN `
             -b $env:FORTIFY_BUILD `
             -scan | Out-String
 
@@ -60,8 +64,6 @@ jobs:
 
           Write-Host "Token extraido: $token"
           echo "FORTIFY_JOB_TOKEN=$token" >> $env:GITHUB_ENV
-        env:
-          FORTIFY_SC_URL: ${{ vars.FORTIFY_SC_URL }}
         shell: powershell
       
       - name: LogIn Fortify SSC and SC-SAST
@@ -70,12 +72,11 @@ jobs:
           fcli config truststore set -f="C:\Program Files\Java\jdk-23\lib\security\cacerts"
           fcli ssc session login --url $env:FORTIFY_SSC_URL --user $env:FORTIFY_SSC_USER --password $env:FORTIFY_SSC_PASS
           
-          fcli sc-sast session login --ssc-url $env:FORTIFY_SSC_URL -t $env:FORTIFY_TOKEN -c $env:FORTIFY_CLIENT_AUTH_TOKEN --connect-timeout 30s
+          fcli sc-sast session login --ssc-url $env:FORTIFY_SSC_URL -t $env:FORTIFY_CI_TOKEN -c $env:FORTIFY_CLIENT_AUTH_TOKEN --connect-timeout 30s
         env:
-          FORTIFY_SSC_URL: ${{ vars.FORTIFY_SSC_URL }}
           FORTIFY_SSC_USER: ${{ secrets.FORTIFY_SSC_USER }}
           FORTIFY_SSC_PASS: ${{ secrets.FORTIFY_SSC_PASS }}
-          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
+          FORTIFY_CI_TOKEN: ${{ secrets.FORTIFY_CI_TOKEN }}
         shell: powershell
 
       - name: Approve Artifact
@@ -90,8 +91,6 @@ jobs:
           echo "ARTIFACT_ID=$artifactId" >> $env:GITHUB_ENV
           
           fcli ssc artifact approve $artifactId
-        env:
-          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
         shell: powershell
 
       - name: Download Fortify Report
