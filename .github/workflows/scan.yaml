@@ -96,7 +96,7 @@ jobs:
       - name: Download Fortify Report
         run: |
           Write-Host "Downloading Fortify Report for Artifact ID: ${{env.ARTIFACT_ID}}"
-          fcli ssc artifact download ${{env.ARTIFACT_ID}} -f $env:FORTIFY_BUILD.fpr
+          fcli ssc artifact download ${{env.ARTIFACT_ID}} -f ${{env.FORTIFY_BUILD}}.fpr
           
       - name: Upload FPR Artifact
         uses: actions/upload-artifact@v4
@@ -105,7 +105,7 @@ jobs:
           path: ${{vars.FORTIFY_BUILD}}.fpr
       - name: Run Github-SAST-Report
         run: |
-          fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file $env:FORTIFY_BUILD.fpr.sarif
+          fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file ${{env.FORTIFY_BUILD}}.fpr.sarif
 
       - name: Upload Sarif Artifact
         uses: actions/upload-artifact@v4
