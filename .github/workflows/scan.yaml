@@ -84,7 +84,7 @@ jobs:
 
           fcli sc-sast scan wait-for $env:FORTIFY_JOB_TOKEN
 
-          $artifactId = fcli ssc artifact list --av=$env:FORTIFY_VERID --output=json | jq -r '.[0].id'
+          $artifactId = (fcli ssc artifact list --av=$env:FORTIFY_VERID --output=json | ConvertFrom-Json)[0].id
           
           echo "ARTIFACT_ID=$artifactId" >> $env:GITHUB_ENV
           
@@ -107,22 +107,6 @@ jobs:
         run: |
           fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file ${{secrets.FORTIFY_BUILD}}.fpr.sarif
 
-      #- name: Install Parser
-        #run: |
-          #Write-Host "Installing SARIF Parser"
-          #dotnet tool install --global Sarif.Multitool --version 2.2.2
-
-      #- name: Translate FPR to Serif 2.1.0
-      #  run: |
-      #    Write-Host "Translating FPR to Serif 2.1.0 format"
-      #    dotnet tool install --global Sarif.Multitool --version 2.2.2
-      #    & "$env:USERPROFILE\.dotnet\tools\sarif.exe" convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
-        
-      #- name: Correct Sarif File
-      #  run: |
-      #    jq -f .\test.jq ${{secrets.FORTIFY_BUILD}}.fpr.sarif > ${{secrets.FORTIFY_BUILD}}-corrected.fpr.sarif
-      #  shell: pwsh
-        
       - name: Upload Sarif Artifact
         uses: actions/upload-artifact@v4
         with:
