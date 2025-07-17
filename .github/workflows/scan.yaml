@@ -13,7 +13,8 @@ on:
 
 jobs:
   Scan_Fortify:
-    runs-on: self-hosted
+    runs-on:
+      group: Fortify
     env:
       FORTIFY_BUILD: ${{ secrets.FORTIFY_BUILD }}
       FORTIFY_VERID: ${{ secrets.FORTIFY_VERID }}
