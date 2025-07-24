@@ -10,12 +10,14 @@ on:
 
 jobs:
   Scan_Fortify:
-    runs-on: self-hosted
+    runs-on:
+      group: Fortify
     env:
-      FORTIFY_BUILD: ${{ secrets.FORTIFY_BUILD }}
-      FORTIFY_VERID: ${{ secrets.FORTIFY_VERID }}
-      FORTIFY_TOKEN: ${{ secrets.FORTIFY_TOKEN }}
-
+      FORTIFY_SSC_URL: ${{ vars.FORTIFY_SSC_URL }}
+      FORTIFY_SC_URL: ${{ vars.FORTIFY_SC_URL }}
+      FORTIFY_BUILD: ${{ vars.FORTIFY_BUILD }}
+      FORTIFY_VERID: ${{ vars.FORTIFY_VERID }}
+    
     permissions:
       contents: read
       security-events: write
@@ -41,7 +43,7 @@ jobs:
         run: |
           $output = scancentral -url $env:FORTIFY_SC_URL start -upload `
             -versionid $env:FORTIFY_VERID `
-            -uptoken $env:FORTIFY_TOKEN `
+            -uptoken $env:FORTIFY_SC_CRTL_TOKEN `
             -b $env:FORTIFY_BUILD `
             -scan | Out-String
 
@@ -57,7 +59,7 @@ jobs:
           Write-Host "Token extraido: $token"
           echo "FORTIFY_JOB_TOKEN=$token" >> $env:GITHUB_ENV
         env:
-          FORTIFY_SC_URL: ${{ secrets.FORTIFY_SC_URL }}
+          FORTIFY_SC_CRTL_TOKEN: ${{ secrets.FORTIFY_SC_CRTL_TOKEN }}
         shell: powershell
       
       - name: LogIn Fortify SSC and SC-SAST
@@ -66,12 +68,12 @@ jobs:
           fcli config truststore set -f="C:\Program Files\Java\jdk-23\lib\security\cacerts"
           fcli ssc session login --url $env:FORTIFY_SSC_URL --user $env:FORTIFY_SSC_USER --password $env:FORTIFY_SSC_PASS
           
-          fcli sc-sast session login --ssc-url $env:FORTIFY_SSC_URL -t $env:FORTIFY_TOKEN -c $env:FORTIFY_CLIENT_AUTH_TOKEN --connect-timeout 30s
+          fcli sc-sast session login --ssc-url $env:FORTIFY_SSC_URL -t $env:FORTIFY_CI_TOKEN -c $env:FORTIFY_CLIENT_AUTH_TOKEN --connect-timeout 30s
         env:
-          FORTIFY_SSC_URL: ${{ secrets.FORTIFY_SSC_URL }}
           FORTIFY_SSC_USER: ${{ secrets.FORTIFY_SSC_USER }}
           FORTIFY_SSC_PASS: ${{ secrets.FORTIFY_SSC_PASS }}
-          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
+          FORTIFY_CI_TOKEN: ${{ secrets.FORTIFY_CI_TOKEN }}
+          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}  
         shell: powershell
 
       - name: Approve Artifact
@@ -81,44 +83,36 @@ jobs:
 
           fcli sc-sast scan wait-for $env:FORTIFY_JOB_TOKEN
 
-          $artifactId = fcli ssc artifact list --av=$env:FORTIFY_VERID --output=json | jq -r '.[0].id'
+          $artifactId = (fcli ssc artifact list --av=$env:FORTIFY_VERID --output=json | ConvertFrom-Json)[0].id
           
           echo "ARTIFACT_ID=$artifactId" >> $env:GITHUB_ENV
           
           fcli ssc artifact approve $artifactId
-        env:
-          FORTIFY_CLIENT_AUTH_TOKEN: ${{ secrets.FORTIFY_CLIENT_AUTH_TOKEN }}
         shell: powershell
 
       - name: Download Fortify Report
         run: |
           Write-Host "Downloading Fortify Report for Artifact ID: ${{env.ARTIFACT_ID}}"
-          fcli ssc artifact download ${{env.ARTIFACT_ID}} -f ${{secrets.FORTIFY_BUILD}}.fpr
+          fcli ssc artifact download ${{env.ARTIFACT_ID}} -f ${{env.FORTIFY_BUILD}}.fpr
           
       - name: Upload FPR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: fortify-fpr
-          path: ${{secrets.FORTIFY_BUILD}}.fpr
+          path: ${{vars.FORTIFY_BUILD}}.fpr
       - name: Run Github-SAST-Report
         run: |
-          fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+          fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file ${{env.FORTIFY_BUILD}}.fpr.sarif
 
-      - name: Translate FPR to Serif 2.1.0
-        run: |
-          Write-Host "Translating FPR to Serif 2.1.0 format"
-          dotnet tool install --global Sarif.Multitool --version 2.2.2
-          & "$env:USERPROFILE\.dotnet\tools\sarif.exe" convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
-        
       - name: Upload Sarif Artifact
         uses: actions/upload-artifact@v4
         with:
           name: fortify-fpr-sarif
-          path: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+          path: ${{vars.FORTIFY_BUILD}}.fpr.sarif
 
       - name: Upload SARIF File
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{secrets.FORTIFY_BUILD}}.fpr.sarif
+          sarif_file: ${{vars.FORTIFY_BUILD}}.fpr.sarif
           category: Fortify
           
