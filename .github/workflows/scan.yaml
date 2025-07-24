@@ -100,6 +100,9 @@ jobs:
         with:
           name: fortify-fpr
           path: ${{secrets.FORTIFY_BUILD}}.fpr
+      - name: Run Github-SAST-Report
+        run: |
+          fcli ssc action run github-sast-report --appversion $env:FORTIFY_VERID --file ${{secrets.FORTIFY_BUILD}}.fpr.sarif
 
       - name: Translate FPR to Serif 2.1.0
         run: |

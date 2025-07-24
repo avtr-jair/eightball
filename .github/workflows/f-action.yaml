@@ -1,0 +1,36 @@
+name: Run Fortify GitHub Action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Scan_Fortify:
+    runs-on: self-hosted
+    steps:
+    - name: Verificar bash
+      run: |
+        where bash
+        bash --version
+      shell: bash
+
+    - name: Check out source code
+      uses: actions/checkout@v4
+
+    - name: Run Fortify SAST & SCA Scan
+      uses: fortify/github-action@v2
+      with:
+        sast-scan: true
+      env:
+        SSC_URL: ${{ vars.SSC_URL }}
+        SSC_TOKEN: ${{ secrets.SSC_TOKEN }}
+        SC_SAST_TOKEN: ${{ secrets.SC_SAST_CLIENT_AUTH_TOKEN }}
+        DO_JOB_SUMMARY: true
+        JOB_SUMMARY_EXTRA_OPTS: --on-unsigned=ignore
+        EXTRA_SC_SAST_SCAN_OPTS: --store-token
+        DO_EXPORT: github-sast-report
+        EXPORT_ACTION: https://scm.my.org/shared-repos/fcli-actions/github-sast-report.yaml
+        EXPORT_EXTRA_OPTS: --on-unsigned=ignore
+        FCLI_LOG_LEVEL: DEBUG
+        FCLI_TRUSTSTORE: C:\\Program Files\\Java\\jdk-23\\lib\\security\\cacerts
+        FCLI_TRUSTSTORE_TYPE: JKS
+        FCLI_TRUSTSTORE_PWD: changeit  # asegúrate que este sea el correcto
