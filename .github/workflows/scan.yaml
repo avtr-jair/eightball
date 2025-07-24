@@ -8,9 +8,6 @@ on:
         type: boolean
         default: false
 
-  #push:
-    #branches: [ main ]
-
 jobs:
   Scan_Fortify:
     runs-on: self-hosted
@@ -104,21 +101,11 @@ jobs:
           name: fortify-fpr
           path: ${{secrets.FORTIFY_BUILD}}.fpr
 
-      #- name: Install Parser
-        #run: |
-          #Write-Host "Installing SARIF Parser"
-          #dotnet tool install --global Sarif.Multitool --version 2.2.2
-
       - name: Translate FPR to Serif 2.1.0
         run: |
           Write-Host "Translating FPR to Serif 2.1.0 format"
           dotnet tool install --global Sarif.Multitool --version 2.2.2
           & "$env:USERPROFILE\.dotnet\tools\sarif.exe" convert ${{secrets.FORTIFY_BUILD}}.fpr --tool FortifyFpr --output ${{secrets.FORTIFY_BUILD}}.fpr.sarif --pretty-print --force
-        
-      #- name: Correct Sarif File
-      #  run: |
-      #    jq -f .\test.jq ${{secrets.FORTIFY_BUILD}}.fpr.sarif > ${{secrets.FORTIFY_BUILD}}-corrected.fpr.sarif
-      #  shell: pwsh
         
       - name: Upload Sarif Artifact
         uses: actions/upload-artifact@v4
