@@ -8,9 +8,6 @@ on:
         type: boolean
         default: false
 
-  #push:
-    #branches: [ main ]
-
 jobs:
   Scan_Fortify:
     runs-on:
